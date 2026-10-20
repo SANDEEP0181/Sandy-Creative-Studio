@@ -16,27 +16,22 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ??
 
 app.disable("x-powered-by");
 app.use(helmet());
-app.use(
-  cors({
-    origin(origin, callback) {
-      // Allow server-to-server and local command-line requests without an Origin header.
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Origin is not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  }),
-);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Origin is not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+}));
 app.use(express.json({ limit: "20kb", strict: true }));
-app.use(
-  rateLimit({
-    windowMs: 60_000,
-    limit: 30,
-    standardHeaders: "draft-7",
-    legacyHeaders: false,
-    message: { error: "Too many requests. Please wait a minute and try again." },
-  }),
-);
+app.use(rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please wait a minute and try again." },
+}));
 
 const briefSchema = z.object({
   idea: z.string().trim().min(3).max(2_000),
@@ -51,20 +46,51 @@ const briefSchema = z.object({
 const modeGoals = {
   content: "Create useful, engaging content suited to the intended audience.",
   video: "Develop a video concept with a clear opening, coherent pacing, and a satisfying ending.",
-  image: "Describe subject, composition, lighting, palette, and visual style for an image-generation prompt.",
+  image: "Write a detailed image-generation prompt describing subject, composition, lighting, palette, and style. Do not claim to render an image.",
   brand: "Define a consistent campaign direction, audience, message, and brand voice.",
 } as const;
+
+const sectionInstructions = {
+  hook: "Suggest 3 distinct opening options that earn attention without misleading clickbait.",
+  outline: "Provide a logical outline with the main message, supporting points, and a clear ending.",
+  visuals: "Suggest visual direction, framing, pacing, on-screen text, and a consistent style.",
+  cta: "Suggest one natural, platform-appropriate next step for the audience.",
+  seo: "Suggest a relevant title, short description, keywords, and hashtags where appropriate.",
+} as const;
+
+function buildPrompt(input: z.infer<typeof briefSchema>): string {
+  const requested = input.sections.map((key) => `- ${key.toUpperCase()}: ${sectionInstructions[key]}`).join("\n");
+  return [
+    "You are the creative assistant inside Sandy Creative Studio.",
+    "Create an original, useful output. Do not invent factual claims; flag claims that need checking.",
+    "Follow the user's language and platform. Avoid deceptive engagement bait.",
+    "",
+    `MODE: ${input.mode}`,
+    `GOAL: ${modeGoals[input.mode]}`,
+    `PLATFORM: ${input.platform}`,
+    `LANGUAGE: ${input.language}`,
+    `TONE: ${input.tone}`,
+    `FORMAT: ${input.format}`,
+    "",
+    "USER IDEA:",
+    input.idea,
+    "",
+    "INCLUDE THESE SECTIONS:",
+    requested || "- Use the most useful sections for the request.",
+  ].join("\n");
+}
 
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     service: "sandy-creative-studio-api",
-    version: "0.1.0",
-    aiProviderConfigured: false,
+    version: "0.2.0",
+    textGenerationConfigured: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL),
+    optimaiSearchConfigured: Boolean(process.env.OPTIMAI_API_KEY),
   });
 });
 
-// This endpoint structures a brief only; it does not claim to call an AI model.
+// Structured fallback: this endpoint does not call a model.
 app.post("/api/brief", (req, res) => {
   const parsed = briefSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -78,15 +104,7 @@ app.post("/api/brief", (req, res) => {
   }
 
   const input = parsed.data;
-  const sections: Record<(typeof input.sections)[number], string> = {
-    hook: "Suggest 3 distinct opening options that earn attention without misleading clickbait.",
-    outline: "Provide a logical outline with the main message, supporting points, and a clear ending.",
-    visuals: "Suggest visual direction, framing, pacing, on-screen text, and a consistent style.",
-    cta: "Suggest one natural, platform-appropriate next step for the audience.",
-    seo: "Suggest a relevant title, short description, keywords, and hashtags where appropriate.",
-  };
-
-  const requestedSections = input.sections.map((key) => `- ${key.toUpperCase()}: ${sections[key]}`);
+  const requestedSections = input.sections.map((key) => `- ${key.toUpperCase()}: ${sectionInstructions[key]}`);
   const brief = [
     "SANDY CREATIVE STUDIO — CREATIVE BRIEF",
     "",
@@ -110,16 +128,78 @@ app.post("/api/brief", (req, res) => {
     "- Review the output before publishing.",
     "",
     "STATUS",
-    "This brief was structured by the API. AI generation and OptimAI Search are not connected yet.",
+    "This brief was structured locally. To generate AI content, configure the server-side text provider.",
   ].join("\n");
 
-  return res.json({
-    ok: true,
-    mode: input.mode,
-    generatedBy: "local-brief-builder",
-    aiGenerationEnabled: false,
-    brief,
-  });
+  return res.json({ ok: true, mode: input.mode, generatedBy: "local-brief-builder", aiGenerationEnabled: false, brief });
+});
+
+// Text generation uses a server-side API key. The key is never sent to the browser.
+app.post("/api/generate", async (req, res, next) => {
+  const parsed = briefSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid generation input",
+      details: parsed.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = process.env.OPENAI_MODEL;
+  if (!apiKey || !model) {
+    return res.status(503).json({
+      error: "AI generation is not configured yet. Set OPENAI_API_KEY and OPENAI_MODEL in the backend host environment.",
+      code: "AI_PROVIDER_NOT_CONFIGURED",
+    });
+  }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: buildPrompt(parsed.data),
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+
+    if (!response.ok) {
+      // Do not forward provider response bodies; they may contain sensitive diagnostic data.
+      if (response.status === 429) {
+        return res.status(429).json({ error: "AI provider rate limit reached. Please try again later." });
+      }
+      if (response.status === 401 || response.status === 403) {
+        return res.status(502).json({ error: "The server-side AI provider credentials were rejected. Check the backend configuration." });
+      }
+      return res.status(502).json({ error: "The AI provider could not complete this request." });
+    }
+
+    const payload: unknown = await response.json();
+    const outputText = z.object({
+      output_text: z.string().optional(),
+    }).passthrough().parse(payload).output_text;
+
+    if (!outputText?.trim()) {
+      return res.status(502).json({ error: "The AI provider returned no text output." });
+    }
+
+    return res.json({
+      ok: true,
+      mode: parsed.data.mode,
+      generatedBy: "configured-text-provider",
+      aiGenerationEnabled: true,
+      output: outputText.trim(),
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.use((_req, res) => {
@@ -131,8 +211,9 @@ const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return res.status(400).json({ error: "Invalid JSON request body" });
   }
   if (!res.headersSent) {
-    return res.status(500).json({
-      error: isProduction ? "Internal server error" : String(error.message ?? error),
+    const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+    return res.status(timedOut ? 504 : 500).json({
+      error: timedOut ? "The AI request timed out. Please try again." : (isProduction ? "Internal server error" : String(error.message ?? error)),
     });
   }
 };
