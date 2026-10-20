@@ -1,5 +1,6 @@
 name: Deploy static site to GitHub Pages
 
+# Static site deployment workflow for Sandy Creative Studio.
 on:
   push:
     branches: [main]
