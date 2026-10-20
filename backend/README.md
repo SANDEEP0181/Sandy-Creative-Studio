@@ -70,4 +70,4 @@ npm start
 - Never commit real keys, wallet keys, or access tokens. Never put provider keys in frontend JavaScript.
 - The current `OPTIMAI_API_KEY` setting is reserved and is not used by an OptimAI adapter yet.
 - Add authentication, per-user quotas, usage/cost limits, request logging with sensitive-data redaction, and automated tests before exposing paid AI features publicly.
-- The static GitHub Pages frontend does not yet call this backend automatically. Deploy the API and wire its base URL into the frontend before using it from the live website.
+- The frontend reads the backend origin from `config.js` (`window.SANDY_API_BASE_URL`). Keep this as an origin only, without a trailing slash. If it is empty or the backend is unavailable, the UI falls back to the local brief builder.
