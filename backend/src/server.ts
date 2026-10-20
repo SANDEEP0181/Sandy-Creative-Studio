@@ -1,5 +1,5 @@
 import cors from "cors";
-import express, { type ErrorRequestHandler } from "express";
+import express, { type ErrorRequestHandler, type Request, type Response, type NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { z } from "zod";
@@ -202,11 +202,11 @@ app.post("/api/generate", async (req, res, next) => {
   }
 });
 
-app.use((_req, res) => {
+app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+const errorHandler: ErrorRequestHandler = (error: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof SyntaxError) {
     return res.status(400).json({ error: "Invalid JSON request body" });
   }
