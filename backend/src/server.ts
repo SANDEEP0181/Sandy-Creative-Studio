@@ -171,9 +171,54 @@ app.post("/api/generate", async (req, res, next) => {
     });
 
     if (!response.ok) {
-      // Do not forward provider response bodies; they may contain sensitive diagnostic data.
+      // Read only the provider's structured error code. Never return its raw body or secrets.
       if (response.status === 429) {
-        return res.status(429).json({ error: "AI provider rate limit reached. Please try again later." });
+        const providerPayload: unknown = await response.json().catch(() => null);
+        const providerErrorSchema = z.object({
+          error: z.object({
+            code: z.union([z.string(), z.null()]).optional(),
+            type: z.union([z.string(), z.null()]).optional(),
+          }).passthrough(),
+        }).passthrough();
+        const parsedProviderError = providerErrorSchema.safeParse(providerPayload);
+        const providerCode = parsedProviderError.success
+          ? String(parsedProviderError.data.error.code ?? parsedProviderError.data.error.type ?? "").toLowerCase()
+          : "";
+        const retryAfterHeader = response.headers.get("retry-after");
+        const retryAfterSeconds = retryAfterHeader && /^\\d+$/.test(retryAfterHeader.trim())
+          ? Number(retryAfterHeader.trim())
+          : undefined;
+
+        if (["rate_limit_exceeded", "slow_down", "rate_limit_error"].includes(providerCode)) {
+          return res.status(429).json({
+            error: "The AI request rate limit was reached. Wait before trying again.",
+            code: "AI_RATE_LIMITED",
+            ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+          });
+        }
+        if (["insufficient_quota", "credit_balance_exhausted"].includes(providerCode)) {
+          return res.status(429).json({
+            error: "The AI provider reports that this API organization or project has no available quota or credits. Check the selected organization and project billing.",
+            code: "AI_QUOTA_OR_CREDITS_EXHAUSTED",
+          });
+        }
+        if ([
+          "organization_usage_limit_exceeded",
+          "organization_spend_limit_exceeded",
+          "project_spend_limit_exceeded",
+          "usage_limit_exceeded",
+        ].includes(providerCode)) {
+          return res.status(429).json({
+            error: "The AI provider reports that an organization or project usage limit was reached. Check the limits for the organization and project used by this API key.",
+            code: "AI_USAGE_LIMIT_REACHED",
+          });
+        }
+        return res.status(429).json({
+          error: "The AI provider returned a quota or rate-limit error. Check the backend's API organization, project, model access, and Limits page.",
+          code: "AI_PROVIDER_429",
+          ...(providerCode ? { providerCode } : {}),
+          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+        });
       }
       if (response.status === 401 || response.status === 403) {
         return res.status(502).json({ error: "The server-side AI provider credentials were rejected. Check the backend configuration." });
