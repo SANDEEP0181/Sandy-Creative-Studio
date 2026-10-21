@@ -185,7 +185,7 @@ app.post("/api/generate", async (req, res, next) => {
           ? String(parsedProviderError.data.error.code ?? parsedProviderError.data.error.type ?? "").toLowerCase()
           : "";
         const retryAfterHeader = response.headers.get("retry-after");
-        const retryAfterSeconds = retryAfterHeader && /^\\d+$/.test(retryAfterHeader.trim())
+        const retryAfterSeconds = retryAfterHeader && /^\d+$/.test(retryAfterHeader.trim())
           ? Number(retryAfterHeader.trim())
           : undefined;
 
