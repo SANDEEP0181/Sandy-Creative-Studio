@@ -1,59 +1,95 @@
 # Sandy Creative Studio
 
-A responsive creator workspace for turning ideas into structured creative briefs, with a secure API starter in `backend/`.
+Sandy Creative Studio is a responsive, light-theme workspace for turning creator ideas into structured briefs and AI-assisted creative drafts.
+
+## Live links
+
+- **Website:** https://sandeep0181.github.io/Sandy-Creative-Studio/
+- **Backend health:** https://sandy-creative-studio-api.onrender.com/health
+- **Repository:** https://github.com/SANDEEP0181/Sandy-Creative-Studio
 
 ## Current features
 
-- Responsive dark interface for mobile and desktop
-- Content/social, video, image-prompt, and brand-campaign modes
-- Configurable platform, language, tone, format, and brief sections
-- Copy-to-clipboard and `.txt` export
-- TypeScript API starter with request validation, rate limiting, security headers, and CORS allowlisting
-- API health, structured-brief, and optional server-side AI text-generation endpoints
-- Frontend API URL kept in `config.js`; provider secrets remain on the backend
-- Local brief-builder fallback works without API configuration
+- Responsive light interface with mint/green and soft lavender accents (no black theme)
+- Content/social, video concepts, image prompts, and brand/campaign modes
+- Configurable platform, language, tone, format, and requested sections
+- Copy brief and download as a text file
+- Backend API with input validation, request-size limit, rate limiting, security headers, and CORS allowlisting
+- Structured local brief endpoint and server-side AI text-generation endpoint
+- Frontend backend URL in `config.js`; provider credentials stay on the backend
+- Local fallback when the API is unavailable
+- GitHub Pages deployment workflow
+- Backend build and smoke tests run through GitHub Actions
 
-## Live website
+## Backend setup
 
-After a successful GitHub Pages deployment:
+The Render service is configured at:
 
-`https://sandeep0181.github.io/Sandy-Creative-Studio/`
+`https://sandy-creative-studio-api.onrender.com`
 
-## Backend deployment
+The health endpoint reports service readiness and whether optional provider settings are present. A healthy endpoint alone does not prove a real generation request succeeded; test generation from the website as part of release verification.
 
-A Render Blueprint is included in `render.yaml`.
+To run locally, use Node.js 20 or newer:
 
-1. Open [Render Blueprints](https://dashboard.render.com/blueprints) and create a Blueprint from this GitHub repository.
-2. Review the proposed `sandy-creative-studio-api` web service and deploy it. The Blueprint does not create a database.
-3. After deployment, open the service URL and confirm `/health` returns `"status":"ok"`.
-4. In `config.js`, set `window.SANDY_API_BASE_URL` to the deployed service origin (for example, `https://your-service.onrender.com`, without a trailing slash), then commit the change. GitHub Pages will redeploy the frontend.
-5. To enable AI text generation, add `OPENAI_API_KEY` and `OPENAI_MODEL` in the Render service environment settings. Never put those values in `config.js`.
+```powershell
+cd backend
+npm install
+npm run dev
+```
 
-See [backend/README.md](backend/README.md) for endpoint details and configuration.
+For a production build and automated tests:
 
-The backend can call the OpenAI Responses API for text generation only when `OPENAI_API_KEY` and `OPENAI_MODEL` are configured in the backend host. Without those settings, the website continues to provide its local structured-brief fallback. OptimAI Search is not connected yet.
+```powershell
+cd backend
+npm install --include=dev
+npm test
+```
 
-## OptimAI integration scope
+## API endpoints
 
-The official OptimAI builder documentation currently describes OptimAI Search MCP, Search API, and the x402 SDK for source-backed search and agent workflows. These are not automatically a general-purpose image/video generation API. The planned integration is to use OptimAI Search for research-backed context and citations, while selecting a separate supported text/image/video provider if those generation capabilities are needed.
+- `GET /health` — service status and provider-configuration flags.
+- `POST /api/brief` — validates input and returns a structured brief without calling an AI model.
+- `POST /api/generate` — calls the configured text-generation provider from the server.
+
+Example generation request:
+
+```json
+{
+  "idea": "Five helpful technology reel ideas",
+  "mode": "video",
+  "platform": "Instagram Reels",
+  "language": "Hindi",
+  "tone": "Cinematic and emotional",
+  "format": "15–30 seconds",
+  "sections": ["hook", "outline", "visuals", "cta", "seo"]
+}
+```
+
+## Secrets and safety
+
+- Set `OPENAI_API_KEY` and `OPENAI_MODEL` only in the Render service's environment/secret settings.
+- Never commit API keys, `.env` files, wallet keys, or access tokens.
+- Keep `ALLOWED_ORIGINS` restricted to the exact deployed frontend origin.
+- Review model usage costs and provider limits before sharing the service widely.
+- The current `OPTIMAI_API_KEY` flag only detects whether a value exists. **OptimAI Search is not integrated yet**, and the app must not claim that it is.
+- The OptimAI x402 workflow may involve paid on-chain requests. Do not enable payment-enabled calls until the official API contract, cost, authentication, and payer security have been reviewed.
+
+## Roadmap and release checklist
+
+- [x] Publish the frontend on GitHub Pages.
+- [x] Deploy the Node.js API on Render.
+- [x] Configure server-side text generation credentials.
+- [x] Add automated backend smoke tests and a CI workflow.
+- [ ] Confirm a real `POST /api/generate` succeeds from the live website.
+- [ ] Integrate OptimAI Search only after confirming the current official API and authentication contract.
+- [ ] Add usage budgets, abuse monitoring, privacy review, and broader automated tests.
+- [ ] Select a separate image/video provider if actual media generation is needed; a text brief or image prompt is not itself a rendered image/video.
+
+## Official OptimAI references
 
 - [OptimAI developer getting started](https://docs.optimai.network/docs/builders/get-started/)
 - [OptimAI Search quickstart](https://search.optimai.network/docs/quickstart)
 - [OptimAI Search security guidance](https://search.optimai.network/docs/security)
-- [Official OptimAI GitHub organization](https://github.com/OptimaiNetwork)
+- [OptimAI Network GitHub organization](https://github.com/OptimaiNetwork)
 
-## Security notes
-
-- Never commit `.env` files, API keys, wallet keys, or access tokens.
-- Keep provider credentials in backend environment variables or a secret manager.
-- The x402 SDK can involve paid on-chain requests and a payer wallet; do not enable it without reviewing costs and security requirements.
-- Treat user prompts and retrieved web content as untrusted input.
-- Review provider terms, data handling, and usage limits before enabling live generation.
-
-## Roadmap
-
-1. Deploy the backend to a server runtime and configure the frontend API URL.
-2. Add an official OptimAI Search adapter after confirming the supported API contract and authentication flow.
-3. Add a separate text-generation provider adapter, with quotas and clear user feedback.
-4. Add image/video providers only after selecting suitable supported APIs.
-5. Add automated tests, monitoring, and privacy review before production use.
+Treat prompts and retrieved web content as untrusted input. Review generated content before publishing.
