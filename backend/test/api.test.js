@@ -15,7 +15,8 @@ before(async () => {
       NODE_ENV: "test",
       OPENAI_API_KEY: "",
       OPENAI_MODEL: "",
-      OPTIMAI_API_KEY: "",
+      OPTIMAI_ROUTER_API_KEY: "",
+      OPTIMAI_ROUTER_BASE_URL: "https://api-router.optimai.network/v1",
       ALLOWED_ORIGINS: baseUrl,
     },
     stdio: "ignore",
@@ -39,14 +40,23 @@ after(() => {
   if (child && child.exitCode === null) child.kill("SIGTERM");
 });
 
-test("health endpoint reports the service and disabled optional providers", async () => {
+test("health endpoint reports service and provider configuration safely", async () => {
   const response = await fetch(`${baseUrl}/health`);
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.status, "ok");
   assert.equal(body.service, "sandy-creative-studio-api");
   assert.equal(body.textGenerationConfigured, false);
-  assert.equal(body.optimaiSearchConfigured, false);
+  assert.equal(body.optimaiRouterConfigured, false);
+  assert.equal(body.optimaiModelDiscoveryEnabled, false);
+  assert.equal(body.optimaiPaidGenerationEnabled, false);
+});
+
+test("OptimAI model discovery fails safely when no Router key is configured", async () => {
+  const response = await fetch(`${baseUrl}/api/optimai/models`);
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.code, "OPTIMAI_ROUTER_NOT_CONFIGURED");
 });
 
 test("brief endpoint validates and returns a structured local brief", async () => {
