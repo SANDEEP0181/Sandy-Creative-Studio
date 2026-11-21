@@ -50,6 +50,7 @@ npm test
 - `GET /health` — service status and provider-configuration flags.
 - `POST /api/brief` — validates input and returns a structured brief without calling an AI model.
 - `POST /api/generate` — calls the configured text-generation provider from the server.
+- `POST /api/optimai/validate-model` — validates a selected model against the live catalogue; does not run inference or spend credits.
 
 Example generation request:
 
@@ -73,6 +74,12 @@ Example generation request:
 - Review model usage costs and provider limits before sharing the service widely.
 - The current `OPTIMAI_API_KEY` flag only detects whether a value exists. **OptimAI Search is not integrated yet**, and the app must not claim that it is.
 - The OptimAI x402 workflow may involve paid on-chain requests. Do not enable payment-enabled calls until the official API contract, cost, authentication, and payer security have been reviewed.
+
+
+
+### OptimAI model selection status
+
+The website can browse and validate a selected model using the read-only Router catalogue. The selected model is **not** yet connected to inference. `POST /api/generate` continues to use the configured OpenAI Responses API. OptimAI paid inference is intentionally disabled; model discovery and validation do not submit paid requests.
 
 ## Roadmap and release checklist
 
