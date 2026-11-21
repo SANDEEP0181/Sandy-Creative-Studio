@@ -219,6 +219,96 @@ app.post("/api/brief", (req, res) => {
   return res.json({ ok: true, mode: input.mode, generatedBy: "local-brief-builder", aiGenerationEnabled: false, brief });
 });
 
+// Free creator pack: deterministic templates only; never calls OptimAI or spends credits.
+app.post("/api/free/creator-pack", (req, res) => {
+  const parsed = briefSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid creator-pack input",
+      code: "FREE_CREATOR_PACK_INPUT_INVALID",
+      billingTriggered: false,
+    });
+  }
+
+  const input = parsed.data;
+  const isHindi = /hindi/i.test(input.language);
+  const idea = input.idea.replace(/\s+/g, " ").trim();
+  const hooks = isHindi
+    ? [
+        `आज हम आसान भाषा में समझेंगे: ${idea}।`,
+        `अगर आप ${idea} को समझना चाहते हैं, तो यह Reel आपके लिए है।`,
+        `चलिए ${idea} को कुछ आसान चरणों में समझते हैं।`,
+      ]
+    : [
+        `Let's make ${idea} easy to understand.`,
+        `Want a simple explanation of ${idea}? Start here.`,
+        `Here are the key things to know about ${idea}.`,
+      ];
+  const lines = [
+    "SANDY CREATIVE STUDIO — FREE CREATOR PACK",
+    "MODE: Rule-based template · Not AI-generated · No inference submitted · No credits spent",
+    `LANGUAGE: ${input.language}`,
+    "",
+    "PROJECT IDEA",
+    idea,
+    "",
+    "1. THREE HOOK OPTIONS",
+    ...hooks.map((hook, index) => `${index + 1}. ${hook}`),
+    "",
+    "2. SHORT REEL SCRIPT (15–30 SECONDS)",
+    isHindi
+      ? "0–3 sec · HOOK: " + hooks[0]
+      : "0–3 sec · HOOK: " + hooks[0],
+    isHindi
+      ? "3–8 sec · SETUP: आज के वीडियो में हम इस विषय की सबसे जरूरी बात समझेंगे।"
+      : "3–8 sec · SETUP: In this video, we'll cover the most useful point about this topic.",
+    isHindi
+      ? "8–18 sec · MAIN POINT: [यहाँ पहला सत्यापित बिंदु बताएं]। [यहाँ दूसरा उपयोगी बिंदु या छोटा उदाहरण जोड़ें]।"
+      : "8–18 sec · MAIN POINT: [Add one verified point]. [Add a second useful point or a short example].",
+    isHindi
+      ? "18–25 sec · TAKEAWAY: इसलिए याद रखें — [एक वाक्य में मुख्य सीख]।"
+      : "18–25 sec · TAKEAWAY: Remember this — [summarise the main lesson in one sentence].",
+    isHindi
+      ? "25–30 sec · CTA: ऐसी सरल और उपयोगी जानकारी के लिए फॉलो करें।"
+      : "25–30 sec · CTA: Follow for more simple, useful content.",
+    "",
+    "3. SCENE-BY-SCENE VISUAL PLAN",
+    "Scene 1 (0–3s): Face-to-camera opening; show the hook as large on-screen text.",
+    "Scene 2 (3–8s): Medium shot; introduce the topic with one clear visual cue.",
+    "Scene 3 (8–18s): Two quick supporting shots or simple labels; keep each point readable.",
+    "Scene 4 (18–25s): Return to the main frame; display the one-line takeaway.",
+    "Scene 5 (25–30s): Clear follow prompt; keep the screen uncluttered.",
+    "",
+    "4. VOICEOVER + ON-SCREEN CAPTIONS",
+    "Voiceover: Use the script above in a natural, friendly pace. Read each placeholder only after replacing it with checked information.",
+    "Captions: Use short phrases, high contrast, and no more than 1–2 lines at a time. Keep text inside the platform-safe area.",
+    "",
+    "5. INSTAGRAM CAPTION",
+    isHindi
+      ? `आज का विषय: ${idea}\nइस विषय की जरूरी बातें आसान भाषा में। अपनी राय या सवाल कमेंट में लिखें।`
+      : `Today's topic: ${idea}\nA simple breakdown of the key points. Share your questions in the comments.`,
+    "",
+    "SUGGESTED HASHTAGS",
+    "#InstagramReels #HindiContent #LearnWithMe #UsefulTips #CreatorCommunity",
+    "",
+    "EDITORIAL CHECK",
+    "- Replace bracketed placeholders with accurate, verified details before publishing.",
+    "- Do not present assumptions as facts or promise guaranteed results.",
+    "- Check spelling, captions, audio rights, and platform-safe framing.",
+    "",
+    "STATUS",
+    "Generated locally from reusable templates. This is not AI output; OptimAI inference was not called and billing was not triggered.",
+  ];
+  return res.json({
+    ok: true,
+    generatedBy: "local-template-engine",
+    aiGenerationEnabled: false,
+    providerCalled: false,
+    billingTriggered: false,
+    pack: lines.join("\n"),
+  });
+});
+
 // Free preflight: validates request and selected model without submitting inference or spending credits.
 app.post("/api/generate/preflight", async (req, res) => {
   const parsed = briefSchema.safeParse(req.body);
