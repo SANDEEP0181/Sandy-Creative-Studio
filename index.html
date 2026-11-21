@@ -40,11 +40,11 @@ body{background:radial-gradient(ellipse at 82% -8%,#e8e2ff 0,transparent 38%),ra
 .model-warning{font-size:11px;color:#8a5b24;background:#fff8e8;border:1px solid #f1dfb9;border-radius:9px;padding:8px;margin-top:9px}
 @media(max-width:540px){.model-controls{grid-template-columns:1fr}.model-refresh{width:100%}}
 </style></head><body><div class="shell"><header class="top"><div class="brand"><div class="logo">S</div><div>Sandy Creative Studio<small>Ideas into impact</small></div></div><div><span class="pill"><span class="dot"></span>Workspace ready</span> <span class="pill">v0.1 · Starter</span></div></header><section class="hero"><div><div class="eyebrow">✦ Your creative command center</div><h1>Make room for <span class="gradient">big ideas.</span></h1><p>Plan content, shape concepts, and build clear creative briefs for your next video, post, campaign, or brand project.</p></div><div class="hero-card"><strong>✨ Start with a spark</strong><p>Describe what you want to make. The studio turns your idea into a structured creative brief you can copy into your preferred AI tools.</p><div class="mini-row"><span class="tag">Content planning</span><span class="tag">Prompt builder</span><span class="tag">Creator workflow</span></div></div></section><div class="layout"><aside class="side"><h3>Workspace</h3><button class="navbtn active" data-kind="content"><span class="navicon">✍️</span>Content & social</button><button class="navbtn" data-kind="video"><span class="navicon">🎬</span>Video concepts</button><button class="navbtn" data-kind="image"><span class="navicon">🎨</span>Image prompts</button><button class="navbtn" data-kind="brand"><span class="navicon">✦</span>Brand & campaign</button><div class="side-note">Your draft stays in this browser session. AI provider integrations can be added through a secure server-side adapter.</div></aside><div class="main"><section class="workspace"><div class="section-head"><div><h2 id="formTitle">Create a content brief</h2><p id="formSubtitle">Give your idea a clear direction.</p></div><span class="step">STEP 01</span></div><form id="briefForm"><div class="field"><label for="idea">What is your idea?</label><textarea id="idea" placeholder="Example: A short Hindi video explaining 3 useful AI tools for creators..." required></textarea></div><div class="two"><div class="field"><label for="platform">Platform</label><select id="platform"><option>YouTube</option><option>Instagram Reels</option><option>Facebook</option><option>TikTok</option><option>Blog / Website</option><option>Multi-platform</option></select></div><div class="field"><label for="language">Language</label><select id="language"><option>Hindi</option><option>English</option><option>Hindi + English</option><option>Any / decide later</option></select></div></div><div class="two"><div class="field"><label for="tone">Creative tone</label><select id="tone"><option>Professional</option><option>Friendly and simple</option><option>Energetic and bold</option><option>Cinematic and emotional</option><option>Funny and playful</option><option>Educational</option></select></div><div class="field"><label for="length">Format / length</label><select id="length"><option>Short-form · 15–30 sec</option><option>Short video · 30–60 sec</option><option>Long video · 3–5 min</option><option>Carousel · 5–8 slides</option><option>Single post</option><option>Detailed article</option></select></div></div><div class="field"><label>What should the brief include?</label><div class="choices"><button type="button" class="choice selected" data-extra="hook">Hook</button><button type="button" class="choice selected" data-extra="outline">Structure</button><button type="button" class="choice selected" data-extra="visuals">Visual ideas</button><button type="button" class="choice" data-extra="cta">Call to action</button><button type="button" class="choice" data-extra="seo">SEO ideas</button></div></div><div class="model-panel" aria-labelledby="optimaiModelTitle">
-<div class="model-panel-head"><div class="model-panel-title" id="optimaiModelTitle">OptimAI Router model catalogue</div><span class="tag">Read-only discovery</span></div>
-<p class="model-panel-note">Browse models returned by your connected OptimAI Router. Model selection is a preview only; OptimAI inference is not enabled yet.</p>
+<div class="model-panel-head"><div class="model-panel-title" id="optimaiModelTitle">OptimAI Router model catalogue</div><span class="tag">Catalogue + safe validation</span></div>
+<p class="model-panel-note">Browse the live OptimAI Router catalogue and validate your selected model. Paid inference remains disabled.</p>
 <div class="model-controls"><div><label for="optimaiModelSelect">Choose a model</label><select id="optimaiModelSelect" disabled><option>Loading available models…</option></select></div><button class="model-refresh" id="optimaiRefresh" type="button">↻ Refresh models</button></div>
 <div class="model-status" id="optimaiModelStatus" role="status" aria-live="polite">Checking OptimAI Router catalogue…</div>
-<div class="model-warning">Selecting a model here does not send a paid request and does not change the existing text-generation provider.</div>
+<div class="model-warning">Model validation is read-only: it does not run inference, spend credits, or change the existing OpenAI generation route.</div>
 </div>
 <button class="primary" type="submit">✦ Build my creative brief</button></form></section><section class="output"><div class="output-head"><h3>Your creative brief</h3><button class="copy" id="copyBtn">Copy brief</button></div><p class="hint">Your structured draft appears here. Refine it and use it in your creative workflow.</p><div class="result" id="result" aria-live="polite">Your idea starts here…
 
@@ -103,6 +103,28 @@ async function loadOptimAIModelCatalogue(){
     optimaiRefresh.disabled=false;
   }
 }
+async function validateOptimAISelection(){
+  const modelId=optimaiModelSelect.value;
+  if(!modelId||optimaiModelSelect.disabled) return;
+  optimaiModelStatus.textContent="Validating selected model against the live catalogue…";
+  optimaiModelSelect.disabled=true;
+  try{
+    if(!API_BASE_URL) throw new Error("Backend URL is not configured.");
+    const response=await fetch(API_BASE_URL+"/api/optimai/validate-model",{
+      method:"POST",
+      headers:{"Content-Type":"application/json",Accept:"application/json"},
+      body:JSON.stringify({modelId})
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(payload.error||"Could not validate this model.");
+    optimaiModelStatus.textContent="Validated: "+payload.selectedModel.id+". Preview only — inference is disabled and no credits were spent.";
+  }catch(error){
+    optimaiModelStatus.textContent=error instanceof Error?error.message:"Could not validate the selected model.";
+  }finally{
+    optimaiModelSelect.disabled=false;
+  }
+}
+optimaiModelSelect.addEventListener("change",validateOptimAISelection);
 optimaiRefresh.addEventListener("click",loadOptimAIModelCatalogue);
 loadOptimAIModelCatalogue();
 document.getElementById("year").textContent=new Date().getFullYear();
