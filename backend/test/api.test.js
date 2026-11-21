@@ -116,6 +116,63 @@ test("free creator pack returns a local Reel script without calling a provider",
   assert.match(body.pack, /Hindi/);
 });
 
+test("Creator Pack 2.0 supports 30-second educational Hindi templates without provider calls", async () => {
+  const response = await fetch(`${baseUrl}/api/free/creator-pack/v2`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      idea: "Digital safety basics",
+      mode: "video",
+      platform: "Instagram Reels",
+      language: "Hindi",
+      tone: "Friendly and simple",
+      format: "30 seconds",
+      sections: ["hook", "outline", "visuals"],
+      style: "educational",
+      duration: 30,
+    }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.generatedBy, "local-template-engine-v2");
+  assert.equal(body.style, "educational");
+  assert.equal(body.duration, 30);
+  assert.equal(body.aiGenerationEnabled, false);
+  assert.equal(body.providerCalled, false);
+  assert.equal(body.billingTriggered, false);
+  assert.match(body.pack, /FREE CREATOR PACK 2.0/);
+  assert.match(body.pack, /30-SECOND SCRIPT OUTLINE/);
+  assert.match(body.pack, /VOICEOVER-READY SCRIPT/);
+  assert.match(body.pack, /IMAGE PROMPTS \(TEXT ONLY/);
+  assert.match(body.pack, /Hindi/);
+});
+
+test("Creator Pack 2.0 supports 60-second storytelling and rejects invalid styles", async () => {
+  const response = await fetch(`${baseUrl}/api/free/creator-pack/v2`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      idea: "A small learning journey",
+      language: "English",
+      style: "storytelling",
+      duration: 60,
+    }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.style, "storytelling");
+  assert.equal(body.duration, 60);
+  assert.match(body.pack, /60-SECOND SCRIPT OUTLINE/);
+  assert.match(body.pack, /Scene 6/);
+
+  const invalid = await fetch(`${baseUrl}/api/free/creator-pack/v2`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ idea: "A valid idea", style: "unknown", duration: 30 }),
+  });
+  assert.equal(invalid.status, 400);
+});
+
 test("free generation preflight never submits inference when Router credentials are absent", async () => {
   const response = await fetch(`${baseUrl}/api/generate/preflight`, {
     method: "POST",
