@@ -45,6 +45,8 @@ body{background:radial-gradient(ellipse at 82% -8%,#e8e2ff 0,transparent 38%),ra
 <div class="model-controls"><div><label for="optimaiModelSelect">Choose a model</label><select id="optimaiModelSelect" disabled><option>Loading available models…</option></select></div><button class="model-refresh" id="optimaiRefresh" type="button">↻ Refresh models</button></div>
 <div class="model-status" id="optimaiModelStatus" role="status" aria-live="polite">Checking OptimAI Router catalogue…</div>
 <div class="model-warning">Model validation is read-only and never spends credits. The selected model is sent to the OptimAI-backed generation endpoint; paid inference is currently disabled by the backend safety gate.</div>
+<button class="model-refresh" id="optimaiPreflight" type="button">✓ Run free setup test</button>
+<div class="model-status" id="optimaiPreflightStatus" role="status" aria-live="polite">Free test checks configuration and model availability only. It does not generate AI content or spend credits.</div>
 </div>
 <button class="primary" type="submit">✦ Build my creative brief</button></form></section><section class="output"><div class="output-head"><h3>Your creative brief</h3><button class="copy" id="copyBtn">Copy brief</button></div><p class="hint">Your structured draft appears here. Refine it and use it in your creative workflow.</p><div class="result" id="result" aria-live="polite">Your idea starts here…
 
@@ -124,6 +126,38 @@ async function validateOptimAISelection(){
     optimaiModelSelect.disabled=false;
   }
 }
+async function runOptimAIPreflight(){
+  const status=document.getElementById("optimaiPreflightStatus");
+  const button=document.getElementById("optimaiPreflight");
+  const idea=val("idea");
+  if(!idea){
+    status.textContent="Enter your creative idea first, then run the free setup test.";
+    document.getElementById("idea").focus();
+    return;
+  }
+  if(!optimaiModelSelect.value||optimaiModelSelect.disabled){
+    status.textContent="Load the model catalogue and select an available model first.";
+    return;
+  }
+  button.disabled=true;
+  status.textContent="Running free configuration and model-availability checks…";
+  try{
+    const payload={idea,mode:kind,platform:val("platform"),language:val("language"),tone:val("tone"),format:val("length"),sections:[...selected],modelId:optimaiModelSelect.value};
+    const response=await fetch(API_BASE_URL+"/api/generate/preflight",{
+      method:"POST",
+      headers:{"Content-Type":"application/json",Accept:"application/json"},
+      body:JSON.stringify(payload)
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.error||"Free setup test failed.");
+    status.textContent="✓ Free test passed: "+data.selectedModel.id+" is available. No AI inference was submitted; no credits were spent.";
+  }catch(error){
+    status.textContent=error instanceof Error?error.message:"Free setup test could not complete.";
+  }finally{
+    button.disabled=false;
+  }
+}
+document.getElementById("optimaiPreflight").addEventListener("click",runOptimAIPreflight);
 optimaiModelSelect.addEventListener("change",validateOptimAISelection);
 optimaiRefresh.addEventListener("click",loadOptimAIModelCatalogue);
 loadOptimAIModelCatalogue();
