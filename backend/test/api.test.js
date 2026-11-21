@@ -145,6 +145,8 @@ test("Creator Pack 2.0 supports 30-second educational Hindi templates without pr
   assert.match(body.pack, /VOICEOVER-READY SCRIPT/);
   assert.match(body.pack, /IMAGE PROMPTS \(TEXT ONLY/);
   assert.match(body.pack, /Hindi/);
+  assert.doesNotMatch(body.pack, /\\[[^\\]]+\\]/);
+  assert.match(body.pack, /पहला कदम/);
 });
 
 test("Creator Pack 2.0 supports 60-second storytelling and rejects invalid styles", async () => {
