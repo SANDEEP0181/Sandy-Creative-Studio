@@ -247,6 +247,7 @@ app.post("/api/free/creator-pack", (req, res) => {
   const lines = [
     "SANDY CREATIVE STUDIO — FREE CREATOR PACK",
     "MODE: Rule-based template · Not AI-generated · No inference submitted · No credits spent",
+    `LANGUAGE: ${input.language}`,
     "",
     "PROJECT IDEA",
     idea,
