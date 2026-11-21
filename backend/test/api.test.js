@@ -89,6 +89,33 @@ test("invalid brief input returns HTTP 400", async () => {
   assert.equal(response.status, 400);
 });
 
+test("free creator pack returns a local Reel script without calling a provider", async () => {
+  const response = await fetch(`${baseUrl}/api/free/creator-pack`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      idea: "Simple digital safety tips",
+      mode: "content",
+      platform: "Instagram Reels",
+      language: "Hindi",
+      tone: "Friendly and simple",
+      format: "Short-form · 15–30 sec",
+      sections: ["hook", "outline", "visuals", "cta", "seo"],
+    }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.generatedBy, "local-template-engine");
+  assert.equal(body.aiGenerationEnabled, false);
+  assert.equal(body.providerCalled, false);
+  assert.equal(body.billingTriggered, false);
+  assert.match(body.pack, /THREE HOOK OPTIONS/);
+  assert.match(body.pack, /SHORT REEL SCRIPT/);
+  assert.match(body.pack, /Scene 1/);
+  assert.match(body.pack, /Hindi/);
+});
+
 test("free generation preflight never submits inference when Router credentials are absent", async () => {
   const response = await fetch(`${baseUrl}/api/generate/preflight`, {
     method: "POST",
