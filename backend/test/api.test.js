@@ -89,6 +89,18 @@ test("invalid brief input returns HTTP 400", async () => {
   assert.equal(response.status, 400);
 });
 
+test("free generation preflight never submits inference when Router credentials are absent", async () => {
+  const response = await fetch(`${baseUrl}/api/generate/preflight`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ idea: "Prepare a free setup check", language: "Hindi", modelId: "qwen3.5:9b" }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.code, "OPTIMAI_ROUTER_NOT_CONFIGURED");
+  assert.equal(body.billingTriggered, false);
+});
+
 test("generation stays disabled safely until paid OptimAI inference is explicitly enabled", async () => {
   const response = await fetch(`${baseUrl}/api/generate`, {
     method: "POST",

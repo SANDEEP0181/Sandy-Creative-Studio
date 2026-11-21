@@ -51,6 +51,7 @@ npm test
 - `POST /api/brief` — validates input and returns a structured brief without calling an AI model.
 - `POST /api/generate` — calls the configured text-generation provider from the server.
 - `POST /api/optimai/validate-model` — validates a selected model against the live catalogue; does not run inference or spend credits.
+- `POST /api/generate/preflight` — checks request shape, Router configuration, and selected model availability without submitting inference or spending credits.
 
 Example generation request:
 
@@ -88,6 +89,7 @@ The website can browse and validate a selected model using the read-only Router 
 - [x] Deploy the Node.js API on Render.
 - [x] Configure server-side text generation credentials.
 - [x] Add automated backend smoke tests and a CI workflow.
+- [x] Add a free generation preflight check that validates the request and selected model without submitting inference or spending credits.
 - [ ] Have the account owner review privacy, provider availability, and credit controls before any paid inference is enabled.
 - [ ] After that review and explicit approval, verify one small live generation request and its Router credit receipt.
 - [ ] Integrate OptimAI Search only after confirming the current official API and authentication contract.
