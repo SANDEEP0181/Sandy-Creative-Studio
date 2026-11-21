@@ -219,6 +219,75 @@ app.post("/api/brief", (req, res) => {
   return res.json({ ok: true, mode: input.mode, generatedBy: "local-brief-builder", aiGenerationEnabled: false, brief });
 });
 
+// Free preflight: validates request and selected model without submitting inference or spending credits.
+app.post("/api/generate/preflight", async (req, res) => {
+  const parsed = briefSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid preflight input",
+      code: "OPTIMAI_PREFLIGHT_INPUT_INVALID",
+      details: parsed.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
+      billingTriggered: false,
+    });
+  }
+
+  if (!process.env.OPTIMAI_ROUTER_API_KEY) {
+    return res.status(503).json({
+      error: "OptimAI Router is not configured for read-only model validation.",
+      code: "OPTIMAI_ROUTER_NOT_CONFIGURED",
+      billingTriggered: false,
+    });
+  }
+
+  const modelId = parsed.data.modelId || process.env.OPTIMAI_DEFAULT_MODEL;
+  if (!modelId) {
+    return res.status(503).json({
+      error: "Choose a model or configure OPTIMAI_DEFAULT_MODEL before running the free setup test.",
+      code: "OPTIMAI_MODEL_NOT_SELECTED",
+      billingTriggered: false,
+    });
+  }
+
+  try {
+    const models = await listOptimAIModels();
+    const selectedModel = models.find((model) => model.id === modelId);
+    if (!selectedModel) {
+      return res.status(404).json({
+        error: "The selected model is not in the current OptimAI Router catalogue. Refresh the catalogue and choose another model.",
+        code: "OPTIMAI_MODEL_NOT_FOUND",
+        billingTriggered: false,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      provider: "optimai-router",
+      selectedModel,
+      requestValidated: true,
+      modelAvailable: true,
+      inferenceEnabled: false,
+      billingTriggered: false,
+      message: "Free setup test passed. No AI inference was submitted and no credits were spent.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const timedOut = message === "OPTIMAI_ROUTER_TIMEOUT";
+    const rejected = message === "OPTIMAI_ROUTER_AUTH_ERROR";
+    return res.status(timedOut ? 504 : 502).json({
+      error: timedOut
+        ? "OptimAI Router model validation timed out. Please try again."
+        : rejected
+          ? "OptimAI Router rejected the server credentials. Check the backend configuration."
+          : "OptimAI Router model validation is temporarily unavailable.",
+      code: timedOut ? "OPTIMAI_ROUTER_TIMEOUT" : rejected ? "OPTIMAI_ROUTER_AUTH_ERROR" : "OPTIMAI_ROUTER_UNAVAILABLE",
+      billingTriggered: false,
+    });
+  }
+});
+
 // OptimAI Router is the primary text-generation provider. Paid inference is OFF by default.
 app.post("/api/generate", async (req, res) => {
   const parsed = briefSchema.safeParse(req.body);
