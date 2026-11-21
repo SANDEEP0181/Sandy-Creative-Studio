@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { z } from "zod";
 import { listOptimAIModels } from "./providers/optimai.js";
+import { generateOptimAICompletion } from "./providers/optimai-generation.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -42,6 +43,7 @@ const briefSchema = z.object({
   tone: z.string().trim().min(1).max(80).default("Professional"),
   format: z.string().trim().min(1).max(100).default("Short-form"),
   sections: z.array(z.enum(["hook", "outline", "visuals", "cta", "seo"])).max(5).default(["hook", "outline", "visuals"]),
+  modelId: z.string().trim().min(1).max(200).optional(),
 });
 
 const modeGoals = {
@@ -86,10 +88,10 @@ app.get("/health", (_req, res) => {
     status: "ok",
     service: "sandy-creative-studio-api",
     version: "0.3.0",
-    textGenerationConfigured: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL),
+    textGenerationConfigured: Boolean(process.env.OPTIMAI_ROUTER_API_KEY && process.env.OPTIMAI_DEFAULT_MODEL),
     optimaiRouterConfigured: Boolean(process.env.OPTIMAI_ROUTER_API_KEY),
     optimaiModelDiscoveryEnabled: Boolean(process.env.OPTIMAI_ROUTER_API_KEY),
-    optimaiPaidGenerationEnabled: false,
+    optimaiPaidGenerationEnabled: process.env.OPTIMAI_PAID_GENERATION_ENABLED === "true",
   });
 });
 
@@ -217,8 +219,8 @@ app.post("/api/brief", (req, res) => {
   return res.json({ ok: true, mode: input.mode, generatedBy: "local-brief-builder", aiGenerationEnabled: false, brief });
 });
 
-// Text generation currently uses the existing OpenAI Responses API integration.
-app.post("/api/generate", async (req, res, next) => {
+// OptimAI Router is the primary text-generation provider. Paid inference is OFF by default.
+app.post("/api/generate", async (req, res) => {
   const parsed = briefSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -230,102 +232,59 @@ app.post("/api/generate", async (req, res, next) => {
     });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL;
-  if (!apiKey || !model) {
+  // This hard gate prevents accidental paid requests until an account owner has reviewed
+  // the Router key, selected model, and per-request credit ceiling.
+  if (process.env.OPTIMAI_PAID_GENERATION_ENABLED !== "true") {
     return res.status(503).json({
-      error: "AI generation is not configured yet. Set OPENAI_API_KEY and OPENAI_MODEL in the backend host environment.",
-      code: "AI_PROVIDER_NOT_CONFIGURED",
+      error: "OptimAI Router is selected as the primary provider, but paid inference is currently disabled. The model catalogue and validation remain available without spending credits.",
+      code: "OPTIMAI_INFERENCE_DISABLED",
+      provider: "optimai-router",
+      billingTriggered: false,
+    });
+  }
+
+  const modelId = parsed.data.modelId || process.env.OPTIMAI_DEFAULT_MODEL;
+  const maxChargeCredits = process.env.OPTIMAI_MAX_CHARGE_CREDITS;
+  if (!process.env.OPTIMAI_ROUTER_API_KEY || !modelId || !maxChargeCredits) {
+    return res.status(503).json({
+      error: "OptimAI generation configuration is incomplete. The server requires its Router key, a selected default model, and an approved per-request credit ceiling.",
+      code: "OPTIMAI_GENERATION_NOT_CONFIGURED",
     });
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        input: buildPrompt(parsed.data),
-      }),
-      signal: AbortSignal.timeout(45_000),
+    const models = await listOptimAIModels();
+    if (!models.some((model) => model.id === modelId)) {
+      return res.status(400).json({
+        error: "The selected OptimAI model is not in the current live catalogue. Refresh the model list and choose an available model.",
+        code: "OPTIMAI_MODEL_NOT_FOUND",
+      });
+    }
+
+    const output = await generateOptimAICompletion({
+      model: modelId,
+      prompt: buildPrompt(parsed.data),
+      maxChargeCredits,
     });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        const providerPayload: unknown = await response.json().catch(() => null);
-        const providerErrorSchema = z.object({
-          error: z.object({
-            code: z.union([z.string(), z.null()]).optional(),
-            type: z.union([z.string(), z.null()]).optional(),
-          }).passthrough(),
-        }).passthrough();
-        const parsedProviderError = providerErrorSchema.safeParse(providerPayload);
-        const providerCode = parsedProviderError.success
-          ? String(parsedProviderError.data.error.code ?? parsedProviderError.data.error.type ?? "").toLowerCase()
-          : "";
-        const retryAfterHeader = response.headers.get("retry-after");
-        const retryAfterSeconds = retryAfterHeader && /^\d+$/.test(retryAfterHeader.trim())
-          ? Number(retryAfterHeader.trim())
-          : undefined;
-
-        if (["rate_limit_exceeded", "slow_down", "rate_limit_error"].includes(providerCode)) {
-          return res.status(429).json({
-            error: "The AI request rate limit was reached. Wait before trying again.",
-            code: "AI_RATE_LIMITED",
-            ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-          });
-        }
-        if (["insufficient_quota", "credit_balance_exhausted"].includes(providerCode)) {
-          return res.status(429).json({
-            error: "The AI provider reports that this API organization or project has no available quota or credits. Check the selected organization and project billing.",
-            code: "AI_QUOTA_OR_CREDITS_EXHAUSTED",
-          });
-        }
-        if ([
-          "organization_usage_limit_exceeded",
-          "organization_spend_limit_exceeded",
-          "project_spend_limit_exceeded",
-          "usage_limit_exceeded",
-        ].includes(providerCode)) {
-          return res.status(429).json({
-            error: "The AI provider reports that an organization or project usage limit was reached. Check the limits for the organization and project used by this API key.",
-            code: "AI_USAGE_LIMIT_REACHED",
-          });
-        }
-        return res.status(429).json({
-          error: "The AI provider returned a quota or rate-limit error. Check the backend's API organization, project, model access, and Limits page.",
-          code: "AI_PROVIDER_429",
-          ...(providerCode ? { providerCode } : {}),
-          ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
-        });
-      }
-      if (response.status === 401 || response.status === 403) {
-        return res.status(502).json({ error: "The server-side AI provider credentials were rejected. Check the backend configuration." });
-      }
-      return res.status(502).json({ error: "The AI provider could not complete this request." });
-    }
-
-    const payload: unknown = await response.json();
-    const outputText = z.object({
-      output_text: z.string().optional(),
-    }).passthrough().parse(payload).output_text;
-
-    if (!outputText?.trim()) {
-      return res.status(502).json({ error: "The AI provider returned no text output." });
-    }
 
     return res.json({
       ok: true,
       mode: parsed.data.mode,
-      generatedBy: "configured-text-provider",
+      provider: "optimai-router",
+      model: modelId,
+      generatedBy: "optimai-router",
       aiGenerationEnabled: true,
-      output: outputText.trim(),
+      output,
     });
   } catch (error) {
-    return next(error);
+    const message = error instanceof Error ? error.message : "";
+    const status = message.startsWith("OPTIMAI_ROUTER_HTTP_") ? 502 : 503;
+    return res.status(status).json({
+      error: message.startsWith("OPTIMAI_ROUTER_HTTP_")
+        ? "OptimAI Router could not complete this generation request. Check the selected model, availability, and Router response details."
+        : "OptimAI Router is temporarily unavailable. Please try again later.",
+      code: message.startsWith("OPTIMAI_ROUTER_HTTP_") ? "OPTIMAI_GENERATION_FAILED" : "OPTIMAI_ROUTER_UNAVAILABLE",
+    });
   }
 });
 
