@@ -120,6 +120,59 @@ app.get("/api/optimai/models", async (_req, res) => {
   }
 });
 
+// Validate a selected model against the live read-only catalogue.
+// This endpoint never submits inference and never spends Router credits.
+app.post("/api/optimai/validate-model", async (req, res) => {
+  const parsed = z.object({
+    modelId: z.string().trim().min(1).max(200),
+  }).safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "A valid modelId is required.",
+      code: "OPTIMAI_MODEL_ID_INVALID",
+    });
+  }
+
+  if (!process.env.OPTIMAI_ROUTER_API_KEY) {
+    return res.status(503).json({
+      error: "OptimAI Router model discovery is not configured.",
+      code: "OPTIMAI_ROUTER_NOT_CONFIGURED",
+    });
+  }
+
+  try {
+    const models = await listOptimAIModels();
+    const selected = models.find((model) => model.id === parsed.data.modelId);
+    if (!selected) {
+      return res.status(404).json({
+        error: "The selected model is not present in the current OptimAI Router catalogue. Refresh the list and choose again.",
+        code: "OPTIMAI_MODEL_NOT_FOUND",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      provider: "optimai-router",
+      selectedModel: selected,
+      inferenceEnabled: false,
+      billingTriggered: false,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const timedOut = message === "OPTIMAI_ROUTER_TIMEOUT";
+    const rejected = message === "OPTIMAI_ROUTER_AUTH_ERROR";
+    return res.status(timedOut ? 504 : 502).json({
+      error: timedOut
+        ? "OptimAI Router model validation timed out. Please try again."
+        : rejected
+          ? "OptimAI Router rejected the server credentials. Check the backend configuration."
+          : "OptimAI Router model validation is temporarily unavailable.",
+      code: timedOut ? "OPTIMAI_ROUTER_TIMEOUT" : rejected ? "OPTIMAI_ROUTER_AUTH_ERROR" : "OPTIMAI_ROUTER_UNAVAILABLE",
+    });
+  }
+});
+
 // Structured fallback: this endpoint does not call a model.
 app.post("/api/brief", (req, res) => {
   const parsed = briefSchema.safeParse(req.body);
