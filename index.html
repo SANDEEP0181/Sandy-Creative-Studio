@@ -48,7 +48,17 @@ body{background:radial-gradient(ellipse at 82% -8%,#e8e2ff 0,transparent 38%),ra
 <button class="model-refresh" id="optimaiPreflight" type="button">✓ Run free setup test</button>
 <div class="model-status" id="optimaiPreflightStatus" role="status" aria-live="polite">Free test checks configuration and model availability only. It does not generate AI content or spend credits.</div>
 </div>
-<button class="primary" type="submit">✦ Build free creative brief</button><button class="secondary" id="creatorPackBtn" type="button" style="width:100%;margin-top:10px;padding:12px">✦ Build free Reel creator pack</button><p class="model-status" id="creatorPackStatus" role="status" aria-live="polite">Creates a reusable script template locally. No AI inference or credits used.</p></form></section><section class="output"><div class="output-head"><h3>Your creative brief</h3><button class="copy" id="copyBtn">Copy brief</button></div><p class="hint">Your free structured brief appears here. This does not call an AI model or spend credits.</p><div class="result" id="result" aria-live="polite">Your idea starts here…
+<button class="primary" type="submit">✦ Build free creative brief</button><button class="secondary" id="creatorPackBtn" type="button" style="width:100%;margin-top:10px;padding:12px">✦ Build free Reel creator pack</button><p class="model-status" id="creatorPackStatus" role="status" aria-live="polite">Creates a reusable script template locally. No AI inference or credits used.</p>
+<div class="model-panel" aria-labelledby="creatorPackV2Title">
+  <div class="model-panel-title" id="creatorPackV2Title">Free Creator Pack 2.0</div>
+  <p class="model-panel-note">Choose a content style and duration. This uses local templates only.</p>
+  <div class="two">
+    <div class="field"><label for="creatorStyle">Reel style</label><select id="creatorStyle"><option value="educational">Educational</option><option value="storytelling">Storytelling</option><option value="motivation">Motivation</option><option value="facts">Facts</option></select></div>
+    <div class="field"><label for="creatorDuration">Duration</label><select id="creatorDuration"><option value="30">30 seconds</option><option value="60">60 seconds</option></select></div>
+  </div>
+  <button class="primary" id="creatorPackV2Btn" type="button">✦ Build Creator Pack 2.0</button>
+  <p class="model-status" id="creatorPackV2Status" role="status" aria-live="polite">Includes timed script, scene plan, text-only image prompts, voiceover, caption and hashtags. No AI inference or credits used.</p>
+</div></form></section><section class="output"><div class="output-head"><h3>Your creative brief</h3><button class="copy" id="copyBtn">Copy brief</button></div><p class="hint">Your free structured brief appears here. This does not call an AI model or spend credits.</p><div class="result" id="result" aria-live="polite">Your idea starts here…
 
 1. Add your idea on the left.
 2. Choose a platform, language, and tone.
@@ -209,4 +219,4 @@ optimaiModelSelect.addEventListener("change",validateOptimAISelection);
 optimaiRefresh.addEventListener("click",loadOptimAIModelCatalogue);
 loadOptimAIModelCatalogue();
 document.getElementById("year").textContent=new Date().getFullYear();
-</script></body></html>
+</script><script src="./creator-pack-v2.js"></script></body></html>
