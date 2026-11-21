@@ -89,7 +89,7 @@ test("invalid brief input returns HTTP 400", async () => {
   assert.equal(response.status, 400);
 });
 
-test("generation fails safely when provider secrets are not configured", async () => {
+test("generation stays disabled safely until paid OptimAI inference is explicitly enabled", async () => {
   const response = await fetch(`${baseUrl}/api/generate`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -97,7 +97,9 @@ test("generation fails safely when provider secrets are not configured", async (
   });
   const body = await response.json();
   assert.equal(response.status, 503);
-  assert.equal(body.code, "AI_PROVIDER_NOT_CONFIGURED");
+  assert.equal(body.code, "OPTIMAI_INFERENCE_DISABLED");
+  assert.equal(body.provider, "optimai-router");
+  assert.equal(body.billingTriggered, false);
 });
 
 test("unknown routes return JSON 404", async () => {
