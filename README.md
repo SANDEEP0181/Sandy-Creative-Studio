@@ -68,18 +68,19 @@ Example generation request:
 
 ## Secrets and safety
 
-- Set `OPENAI_API_KEY` and `OPENAI_MODEL` only in the Render service's environment/secret settings.
+- OptimAI Router is the primary text-generation provider. Keep `OPTIMAI_ROUTER_API_KEY` only in the Render service's secret environment settings.
+- Paid inference is disabled by default. Do not enable it until the account owner has reviewed the Router key, model, request credit ceiling, privacy implications, and billing controls.
 - Never commit API keys, `.env` files, wallet keys, or access tokens.
 - Keep `ALLOWED_ORIGINS` restricted to the exact deployed frontend origin.
 - Review model usage costs and provider limits before sharing the service widely.
 - The current `OPTIMAI_API_KEY` flag only detects whether a value exists. **OptimAI Search is not integrated yet**, and the app must not claim that it is.
-- The OptimAI x402 workflow may involve paid on-chain requests. Do not enable payment-enabled calls until the official API contract, cost, authentication, and payer security have been reviewed.
+- OptimAI Router chat completions are paid inference. This project keeps them disabled by default and does not make inference calls during model discovery or model validation.
 
 
 
 ### OptimAI model selection status
 
-The website can browse and validate a selected model using the read-only Router catalogue. The selected model is **not** yet connected to inference. `POST /api/generate` continues to use the configured OpenAI Responses API. OptimAI paid inference is intentionally disabled; model discovery and validation do not submit paid requests.
+The website can browse and validate a selected model using the read-only Router catalogue. `POST /api/generate` is now wired to OptimAI Router Chat Completions and passes the selected model ID. Paid inference remains hard-disabled unless a separate explicit server-side enable flag and approved per-request credit ceiling are configured. Model discovery and validation do not submit paid requests.
 
 ## Roadmap and release checklist
 
@@ -87,7 +88,8 @@ The website can browse and validate a selected model using the read-only Router 
 - [x] Deploy the Node.js API on Render.
 - [x] Configure server-side text generation credentials.
 - [x] Add automated backend smoke tests and a CI workflow.
-- [ ] Confirm a real `POST /api/generate` succeeds from the live website.
+- [ ] Have the account owner review privacy, provider availability, and credit controls before any paid inference is enabled.
+- [ ] After that review and explicit approval, verify one small live generation request and its Router credit receipt.
 - [ ] Integrate OptimAI Search only after confirming the current official API and authentication contract.
 - [ ] Add usage budgets, abuse monitoring, privacy review, and broader automated tests.
 - [ ] Select a separate image/video provider if actual media generation is needed; a text brief or image prompt is not itself a rendered image/video.
