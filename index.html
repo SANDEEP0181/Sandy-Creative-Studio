@@ -48,7 +48,7 @@ body{background:radial-gradient(ellipse at 82% -8%,#e8e2ff 0,transparent 38%),ra
 <button class="model-refresh" id="optimaiPreflight" type="button">✓ Run free setup test</button>
 <div class="model-status" id="optimaiPreflightStatus" role="status" aria-live="polite">Free test checks configuration and model availability only. It does not generate AI content or spend credits.</div>
 </div>
-<button class="primary" type="submit">✦ Build free creative brief</button></form></section><section class="output"><div class="output-head"><h3>Your creative brief</h3><button class="copy" id="copyBtn">Copy brief</button></div><p class="hint">Your free structured brief appears here. This does not call an AI model or spend credits.</p><div class="result" id="result" aria-live="polite">Your idea starts here…
+<button class="primary" type="submit">✦ Build free creative brief</button><button class="secondary" id="creatorPackBtn" type="button" style="width:100%;margin-top:10px;padding:12px">✦ Build free Reel creator pack</button><p class="model-status" id="creatorPackStatus" role="status" aria-live="polite">Creates a reusable script template locally. No AI inference or credits used.</p></form></section><section class="output"><div class="output-head"><h3>Your creative brief</h3><button class="copy" id="copyBtn">Copy brief</button></div><p class="hint">Your free structured brief appears here. This does not call an AI model or spend credits.</p><div class="result" id="result" aria-live="polite">Your idea starts here…
 
 1. Add your idea on the left.
 2. Choose a platform, language, and tone.
@@ -80,7 +80,30 @@ const modes={content:{title:"Create a content brief",subtitle:"Give your idea a 
     submit.disabled=false;
     submit.textContent="✦ Build free creative brief";
   }
-}function buildLocalBriefText(){buildBrief();return document.getElementById("result").textContent}document.getElementById("briefForm").addEventListener("submit",e=>{e.preventDefault();if(API_BASE_URL){buildFreeBriefWithApi()}else{buildBrief()}});function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800)}document.getElementById("copyBtn").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(document.getElementById("result").textContent);toast("Brief copied to clipboard")}catch(e){toast("Clipboard unavailable — select the brief text to copy")}});document.getElementById("downloadBtn").addEventListener("click",()=>{const blob=new Blob([document.getElementById("result").textContent],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sandy-creative-brief.txt";a.click();URL.revokeObjectURL(a.href)});document.getElementById("resetBtn").addEventListener("click",()=>{document.getElementById("briefForm").reset();document.getElementById("result").textContent="Your idea starts here…\n\nAdd your idea, choose your settings, and build a new creative brief.";document.getElementById("status").textContent="Local prompt builder · No API key required"});
+}async function buildFreeCreatorPack(){
+  const status=document.getElementById("creatorPackStatus");
+  const button=document.getElementById("creatorPackBtn");
+  const idea=val("idea");
+  if(!idea){status.textContent="Enter your idea first.";document.getElementById("idea").focus();return;}
+  if(!API_BASE_URL){status.textContent="Backend URL is not configured. The free pack service is unavailable.";return;}
+  const payload={idea,mode:kind,platform:val("platform"),language:val("language"),tone:val("tone"),format:val("length"),sections:[...selected]};
+  button.disabled=true;
+  status.textContent="Building your free creator pack…";
+  try{
+    const response=await fetch(API_BASE_URL+"/api/free/creator-pack",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(payload)});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(data.error||"Creator pack could not be created.");
+    document.getElementById("result").textContent=data.pack||"No creator pack was returned.";
+    document.getElementById("status").textContent="Free creator pack ready · Local templates · No AI inference or credits used";
+    status.textContent="✓ Creator pack ready. Replace the marked placeholders with verified details before publishing.";
+  }catch(error){
+    status.textContent=error instanceof Error?error.message:"Creator pack could not be created.";
+  }finally{
+    button.disabled=false;
+  }
+}
+document.getElementById("creatorPackBtn")?.addEventListener("click",buildFreeCreatorPack);
+function buildLocalBriefText(){buildBrief();return document.getElementById("result").textContent}document.getElementById("briefForm").addEventListener("submit",e=>{e.preventDefault();if(API_BASE_URL){buildFreeBriefWithApi()}else{buildBrief()}});function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800)}document.getElementById("copyBtn").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(document.getElementById("result").textContent);toast("Brief copied to clipboard")}catch(e){toast("Clipboard unavailable — select the brief text to copy")}});document.getElementById("downloadBtn").addEventListener("click",()=>{const blob=new Blob([document.getElementById("result").textContent],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sandy-creative-brief.txt";a.click();URL.revokeObjectURL(a.href)});document.getElementById("resetBtn").addEventListener("click",()=>{document.getElementById("briefForm").reset();document.getElementById("result").textContent="Your idea starts here…\n\nAdd your idea, choose your settings, and build a new creative brief.";document.getElementById("status").textContent="Local prompt builder · No API key required"});
 const optimaiModelSelect=document.getElementById("optimaiModelSelect");
 const optimaiModelStatus=document.getElementById("optimaiModelStatus");
 const optimaiRefresh=document.getElementById("optimaiRefresh");
