@@ -15,7 +15,7 @@ Sandy Creative Studio is a responsive, light-theme workspace for turning creator
 - Configurable platform, language, tone, format, and requested sections
 - Copy brief and download as a text file
 - Backend API with input validation, request-size limit, rate limiting, security headers, and CORS allowlisting
-- Structured local brief endpoint and server-side AI text-generation endpoint
+- Structured local brief endpoint, free template-based creator pack, and server-side AI text-generation endpoint
 - Frontend backend URL in `config.js`; provider credentials stay on the backend
 - Local fallback when the API is unavailable
 - GitHub Pages deployment workflow
@@ -48,7 +48,7 @@ npm test
 ## API endpoints
 
 - `GET /health` — service status and provider-configuration flags.
-- `POST /api/brief` — validates input and returns a structured brief without calling an AI model.
+- `POST /api/brief` — validates input and returns a structured brief without calling an AI model.\n- `POST /api/free/creator-pack` — builds a reusable short-form creator pack (hooks, timed script, scene plan, captions, caption copy, hashtags) from local templates; it never calls an AI provider or spends credits.
 - `POST /api/generate` — calls the configured text-generation provider from the server.
 - `POST /api/optimai/validate-model` — validates a selected model against the live catalogue; does not run inference or spend credits.
 - `POST /api/generate/preflight` — checks request shape, Router configuration, and selected model availability without submitting inference or spending credits.
