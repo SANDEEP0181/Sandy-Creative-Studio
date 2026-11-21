@@ -5,6 +5,7 @@ import helmet from "helmet";
 import { z } from "zod";
 import { listOptimAIModels } from "./providers/optimai.js";
 import { generateOptimAICompletion } from "./providers/optimai-generation.js";
+import { buildFreeCreatorPackV2 } from "./free-creator-pack-v2.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -217,6 +218,41 @@ app.post("/api/brief", (req, res) => {
   ].join("\n");
 
   return res.json({ ok: true, mode: input.mode, generatedBy: "local-brief-builder", aiGenerationEnabled: false, brief });
+});
+
+// Free Creator Pack 2.0: style and duration variants; local templates only.
+app.post("/api/free/creator-pack/v2", (req, res) => {
+  const v2Schema = briefSchema.extend({
+    style: z.enum(["educational", "storytelling", "motivation", "facts"]).default("educational"),
+    duration: z.union([z.literal(30), z.literal(60)]).default(30),
+  });
+  const parsed = v2Schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid Creator Pack 2.0 input",
+      code: "FREE_CREATOR_PACK_V2_INPUT_INVALID",
+      billingTriggered: false,
+    });
+  }
+  const input = parsed.data;
+  const pack = buildFreeCreatorPackV2({
+    idea: input.idea,
+    language: input.language,
+    platform: input.platform,
+    tone: input.tone,
+    style: input.style,
+    duration: input.duration,
+  });
+  return res.json({
+    ok: true,
+    generatedBy: "local-template-engine-v2",
+    aiGenerationEnabled: false,
+    providerCalled: false,
+    billingTriggered: false,
+    style: input.style,
+    duration: input.duration,
+    pack,
+  });
 });
 
 // Free creator pack: deterministic templates only; never calls OptimAI or spends credits.

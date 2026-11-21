@@ -48,7 +48,7 @@ npm test
 ## API endpoints
 
 - `GET /health` — service status and provider-configuration flags.
-- `POST /api/brief` — validates input and returns a structured brief without calling an AI model.\n- `POST /api/free/creator-pack` — builds a reusable short-form creator pack (hooks, timed script, scene plan, captions, caption copy, hashtags) from local templates; it never calls an AI provider or spends credits.
+- `POST /api/brief` — validates input and returns a structured brief without calling an AI model.\n- `POST /api/free/creator-pack` — builds the original reusable short-form creator pack from local templates; no provider calls or credits.\n- `POST /api/free/creator-pack/v2` — builds Educational, Storytelling, Motivation, or Facts packs in 30/60-second formats, including timed outlines, scene plans, text-only image prompts, voiceover scripts, captions, and hashtags; no provider calls or credits.
 - `POST /api/generate` — calls the configured text-generation provider from the server.
 - `POST /api/optimai/validate-model` — validates a selected model against the live catalogue; does not run inference or spend credits.
 - `POST /api/generate/preflight` — checks request shape, Router configuration, and selected model availability without submitting inference or spending credits.
@@ -92,7 +92,7 @@ The website can browse and validate a selected model using the read-only Router 
 - [x] Add a free generation preflight check that validates the request and selected model without submitting inference or spending credits.
 - [ ] Have the account owner review privacy, provider availability, and credit controls before any paid inference is enabled.
 - [ ] After that review and explicit approval, verify one small live generation request and its Router credit receipt.
-- [ ] Integrate OptimAI Search only after confirming the current official API and authentication contract.
+- [x] Add Free Creator Pack 2.0 with four styles, 30/60-second formats, voiceover-ready copy, and text-only image prompts.\n- [ ] Integrate OptimAI Search only after confirming the current official API and authentication contract.
 - [ ] Add usage budgets, abuse monitoring, privacy review, and broader automated tests.
 - [ ] Select a separate image/video provider if actual media generation is needed; a text brief or image prompt is not itself a rendered image/video.
 
