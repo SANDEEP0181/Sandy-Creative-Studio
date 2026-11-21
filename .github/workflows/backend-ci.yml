@@ -31,8 +31,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package.json
       - name: Install dependencies
-        run: npm install
+        run: npm install --include=dev
       - name: Type-check
         run: npm run typecheck
-      - name: Build
-        run: npm run build
+      - name: Build and run API tests
+        run: npm test

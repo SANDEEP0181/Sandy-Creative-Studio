@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler, type Request, type Response, type Ne
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { z } from "zod";
+import { listOptimAIModels } from "./providers/optimai.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -84,10 +85,39 @@ app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     service: "sandy-creative-studio-api",
-    version: "0.2.0",
+    version: "0.3.0",
     textGenerationConfigured: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL),
-    optimaiSearchConfigured: Boolean(process.env.OPTIMAI_API_KEY),
+    optimaiRouterConfigured: Boolean(process.env.OPTIMAI_ROUTER_API_KEY),
+    optimaiModelDiscoveryEnabled: Boolean(process.env.OPTIMAI_ROUTER_API_KEY),
+    optimaiPaidGenerationEnabled: false,
   });
+});
+
+// Read-only Router model discovery. This endpoint does not submit paid inference requests.
+app.get("/api/optimai/models", async (_req, res) => {
+  if (!process.env.OPTIMAI_ROUTER_API_KEY) {
+    return res.status(503).json({
+      error: "OptimAI Router model discovery is not configured. Add the Router API key to the backend host environment.",
+      code: "OPTIMAI_ROUTER_NOT_CONFIGURED",
+    });
+  }
+
+  try {
+    const models = await listOptimAIModels();
+    return res.json({ ok: true, provider: "optimai-router", models });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const timedOut = message === "OPTIMAI_ROUTER_TIMEOUT";
+    const rejected = message === "OPTIMAI_ROUTER_AUTH_ERROR";
+    return res.status(timedOut ? 504 : 502).json({
+      error: timedOut
+        ? "OptimAI Router model discovery timed out. Please try again later."
+        : rejected
+          ? "OptimAI Router rejected the server credentials. Check the backend configuration."
+          : "OptimAI Router model discovery is temporarily unavailable.",
+      code: timedOut ? "OPTIMAI_ROUTER_TIMEOUT" : rejected ? "OPTIMAI_ROUTER_AUTH_ERROR" : "OPTIMAI_ROUTER_UNAVAILABLE",
+    });
+  }
 });
 
 // Structured fallback: this endpoint does not call a model.
@@ -134,7 +164,7 @@ app.post("/api/brief", (req, res) => {
   return res.json({ ok: true, mode: input.mode, generatedBy: "local-brief-builder", aiGenerationEnabled: false, brief });
 });
 
-// Text generation uses a server-side API key. The key is never sent to the browser.
+// Text generation currently uses the existing OpenAI Responses API integration.
 app.post("/api/generate", async (req, res, next) => {
   const parsed = briefSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -171,7 +201,6 @@ app.post("/api/generate", async (req, res, next) => {
     });
 
     if (!response.ok) {
-      // Read only the provider's structured error code. Never return its raw body or secrets.
       if (response.status === 429) {
         const providerPayload: unknown = await response.json().catch(() => null);
         const providerErrorSchema = z.object({
