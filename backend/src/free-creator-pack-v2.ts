@@ -19,7 +19,7 @@ const styleNames: Record<CreatorStyle, { en: string; hi: string }> = {
 
 export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
   const hindi = /hindi/i.test(input.language);
-  const idea = input.idea.replace(/\\s+/g, " ").trim();
+  const idea = input.idea.replace(/\s+/g, " ").trim();
   const style = styleNames[input.style][hindi ? "hi" : "en"];
   const hooks = hindi
     ? [
@@ -56,8 +56,8 @@ export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
     `Scene ${i + 1}: Create a vertical 9:16 editorial visual about "${idea}". Style: ${input.style}; clear subject, uncluttered composition, natural lighting, readable negative space, consistent visual identity. No logos, no watermark, no invented factual labels.`
   );
   const voiceover = hindi
-    ? [hooks[0], setup, main, takeaway, cta].join("\\n\\n")
-    : [hooks[0], setup, main, takeaway, cta].join("\\n\\n");
+    ? [hooks[0], setup, main, takeaway, cta].join("\n\n")
+    : [hooks[0], setup, main, takeaway, cta].join("\n\n");
   const caption = hindi
     ? `आज का विषय: ${idea}। इसे आसान भाषा में समझें और अपने सवाल कमेंट में लिखें।`
     : `Today's topic: ${idea}. Save this for a clear, simple explanation and share your questions below.`;
@@ -102,5 +102,5 @@ export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
     "",
     "STATUS",
     "Generated locally from reusable templates. Provider was not called; billing was not triggered.",
-  ].join("\\n");
+  ].join("\n");
 }
