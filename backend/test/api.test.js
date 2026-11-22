@@ -116,7 +116,7 @@ test("free creator pack returns a local Reel script without calling a provider",
   assert.match(body.pack, /Hindi/);
 });
 
-test("Creator Pack 2.0 supports 30-second educational Hindi templates without provider calls", async () => {
+test("Creator Pack 2.1 supports 30-second educational Hindi templates without provider calls", async () => {
   const response = await fetch(`${baseUrl}/api/free/creator-pack/v2`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -140,7 +140,7 @@ test("Creator Pack 2.0 supports 30-second educational Hindi templates without pr
   assert.equal(body.aiGenerationEnabled, false);
   assert.equal(body.providerCalled, false);
   assert.equal(body.billingTriggered, false);
-  assert.match(body.pack, /FREE CREATOR PACK 2.0/);
+  assert.match(body.pack, /FREE CREATOR PACK 2.1/);
   assert.match(body.pack, /30-SECOND SCRIPT OUTLINE/);
   assert.match(body.pack, /VOICEOVER-READY SCRIPT/);
   assert.match(body.pack, /IMAGE PROMPTS \(TEXT ONLY/);
@@ -149,7 +149,7 @@ test("Creator Pack 2.0 supports 30-second educational Hindi templates without pr
   assert.match(body.pack, /पहला कदम/);
 });
 
-test("Creator Pack 2.0 supports 60-second storytelling and rejects invalid styles", async () => {
+test("Creator Pack 2.1 supports 60-second storytelling and rejects invalid styles", async () => {
   const response = await fetch(`${baseUrl}/api/free/creator-pack/v2`, {
     method: "POST",
     headers: { "content-type": "application/json" },
