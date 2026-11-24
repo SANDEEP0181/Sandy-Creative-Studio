@@ -46,6 +46,31 @@ function makeScript(idea: string, hindi: boolean, style: CreatorStyle): Script {
   };
 }
 
+function buildDetailedVisualPrompts(idea: string, hindi: boolean, style: CreatorStyle, tone: string, count: number): string[] {
+  const scenes = hindi ? [
+    { subject: "एक ही creator, साफ और सहज appearance में", location: "साफ-सुथरा indoor creator setup", camera: "eye-level medium close-up, सीधा कैमरे की ओर", action: "Hook बोलते हुए हल्का natural hand gesture", overlay: "एक विचार, एक Reel", background: "सादा, हल्का और distraction-free background" },
+    { subject: "वही creator और वही outfit", location: "उसी setup में desk या phone के पास", camera: "over-the-shoulder medium shot", action: "विषय का संदर्भ एक वाक्य में बताते हुए phone या नोट की ओर इशारा", overlay: "पहले संदर्भ समझें", background: "कम सामान वाला साफ desk, कोई readable brand नहीं" },
+    { subject: "वही creator; जरूरत हो तो हाथों का close-up", location: "desk पर practical demonstration area", camera: "close-up / insert shot, मुख्य वस्तु स्पष्ट focus में", action: "पहला मुख्य बिंदु step-by-step दिखाना", overlay: "पहला कदम", background: "साफ surface और सीमित props" },
+    { subject: "वही creator", location: "उसी demonstration area में", camera: "medium shot से close-up cut", action: "दूसरा बिंदु रोजमर्रा के छोटे उदाहरण से समझाना", overlay: "एक आसान उदाहरण", background: "पहले scenes जैसा consistent setup" },
+    { subject: "वही creator", location: "पहले वाले creator setup में", camera: "eye-level medium shot, stable framing", action: "दो मुख्य सीखों का recap और CTA की ओर संकेत", overlay: "मुख्य सीख: सरल और स्पष्ट", background: "सादा background, text के लिए खाली जगह" },
+    { subject: "वही creator", location: "पहले वाले creator setup में", camera: "medium close-up, हल्का natural push-in feel", action: "कैमरे की ओर देखकर सीख दोहराना और follow करने का इशारा", overlay: "ऐसे और वीडियो के लिए Follow करें", background: "consistent lighting और uncluttered frame" },
+  ] : [
+    { subject: "The same creator with a consistent, natural appearance", location: "A clean indoor creator setup", camera: "Eye-level medium close-up, facing camera", action: "Deliver the hook with a small natural hand gesture", overlay: "One idea. One Reel.", background: "Simple, bright, distraction-free background" },
+    { subject: "The same creator in the same outfit", location: "The same setup beside a desk or phone", camera: "Over-the-shoulder medium shot", action: "Introduce the context in one sentence and point to the phone or notes", overlay: "Set the context", background: "Tidy desk with no readable brands" },
+    { subject: "The same creator; hands may appear in close-up", location: "A practical demonstration area on the desk", camera: "Close-up insert shot with the key object in clear focus", action: "Demonstrate the first main point step by step", overlay: "Step 1", background: "Clean surface with only a few relevant props" },
+    { subject: "The same creator", location: "The same demonstration area", camera: "Cut from medium shot to close-up", action: "Explain the second point through a simple everyday example", overlay: "A simple example", background: "Match the previous scenes for visual continuity" },
+    { subject: "The same creator", location: "Return to the original creator setup", camera: "Stable eye-level medium shot", action: "Recap the two key takeaways and indicate the CTA", overlay: "Keep it clear and simple", background: "Plain background with clear space for text" },
+    { subject: "The same creator", location: "Return to the original creator setup", camera: "Medium close-up with a subtle push-in feel", action: "Repeat the lesson to camera and gesture toward the follow CTA", overlay: "Follow for more", background: "Consistent lighting and an uncluttered frame" },
+  ];
+  return scenes.slice(0, count).map((scene, i) => {
+    const sceneTitle = hindi ? `दृश्य ${i + 1}` : `Scene ${i + 1}`;
+    const topic = hindi ? `विषय: "${idea}"` : `Topic: "${idea}"`;
+    const toneLabel = hindi ? `भाव: ${tone}` : `Tone: ${tone}`;
+    const styleLabel = hindi ? `शैली: ${styleNames[style].hi}` : `Style: ${styleNames[style].en}`;
+    return `${sceneTitle} | Vertical 9:16. ${topic}. Subject: ${scene.subject}. Location: ${scene.location}. Camera: ${scene.camera}. Action: ${scene.action}. Background: ${scene.background}. On-screen text (short and readable): "${scene.overlay}". ${styleLabel}; ${toneLabel}. Natural, even lighting; realistic proportions; clear subject separation; leave safe margins for platform UI and captions. Keep the same creator, outfit, and visual identity across all scenes. No logos, watermarks, fake statistics, fabricated labels, or extra text.`;
+  });
+}
+
 export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
   const hindi = /hindi/i.test(input.language);
   const idea = input.idea.replace(/\s+/g, " ").trim();
@@ -60,11 +85,8 @@ export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
       `18–25s EXAMPLE + TAKEAWAY: ${s.example} ${s.takeaway}`, `25–30s CTA: ${cta}`]
     : [`0–5s HOOK: ${s.hook}`, `5–15s CONTEXT: ${s.context}`, `15–30s MAIN POINT 1: ${s.points[0]}`,
       `30–40s MAIN POINT 2: ${s.points[1]}`, `40–52s EXAMPLE + TAKEAWAY: ${s.example} ${s.takeaway}`, `52–60s CTA: ${cta}`];
-  const scenes = hindi
-    ? ["कैमरे की ओर देखकर Hook बोलें और स्क्रीन पर छोटा शीर्षक दिखाएँ।", "विषय का संदर्भ एक साफ वाक्य में दें।", "पहला मुख्य बिंदु टेक्स्ट और दृश्य के साथ समझाएँ।", "दूसरा बिंदु और रोजमर्रा का उदाहरण दिखाएँ।", "मुख्य सीख का Recap दें और CTA दिखाएँ।", "अंत में सीख दोहराएँ और फॉलो करने को कहें।"]
-    : ["Deliver the hook to camera with a short title.", "Set the context in one clear sentence.", "Explain the first point with a relevant visual.", "Show the second point and an everyday example.", "Recap the takeaway and show the CTA.", "Repeat the key lesson and invite viewers to follow."];
   const count = input.duration === 30 ? 5 : 6;
-  const prompts = Array.from({ length: count }, (_, i) => `Scene ${i + 1}: Vertical 9:16 visual about "${idea}". ${scenes[i]} Style: ${input.style}; uncluttered composition, natural lighting, readable negative space. No logos, watermark, or invented factual labels.`);
+  const prompts = buildDetailedVisualPrompts(idea, hindi, input.style, input.tone, count);
   const caption = hindi ? `आज का विषय: ${idea}। इस Reel में इसे आसान चरणों और एक रोजमर्रा के उदाहरण से समझाया गया है। आपको कौन-सा हिस्सा उपयोगी लगा? कमेंट में बताएं।`
     : `Today's topic: ${idea}. This Reel breaks it into simple steps with an everyday example. Which part was most useful? Share below.`;
   const tags = input.style === "facts" ? "#FactCheck #LearnInHindi #UsefulFacts #CreatorCommunity"
@@ -72,13 +94,13 @@ export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
     : input.style === "motivation" ? "#Motivation #DailyLearning #HindiContent #CreatorCommunity"
     : "#LearnWithMe #HindiContent #UsefulTips #CreatorCommunity";
   return [
-    "SANDY CREATIVE STUDIO — FREE CREATOR PACK 2.1",
+    "SANDY CREATIVE STUDIO — FREE CREATOR PACK 2.2",
     "MODE: Local curated content patterns · Not AI-generated · No inference · No credits spent",
     `LANGUAGE: ${input.language} | PLATFORM: ${input.platform} | STYLE: ${style} | DURATION: ${input.duration}s | TONE: ${input.tone}`,
     "", "1. THREE HOOK OPTIONS", ...hooks.map((h, i) => `${i + 1}. ${h}`),
     "", `2. ${input.duration}-SECOND SCRIPT OUTLINE`, ...timeline,
     "", "3. SCENE-BY-SCENE VISUAL PLAN", ...prompts,
-    "", "4. IMAGE PROMPTS (TEXT ONLY — NO IMAGE GENERATED)", ...prompts.map((p, i) => `Prompt ${i + 1}: ${p}`),
+    "", "4. DETAILED IMAGE PROMPTS (TEXT ONLY — NO IMAGE GENERATED)", ...prompts.map((p, i) => `Prompt ${i + 1}: ${p}`),
     "", "5. VOICEOVER-READY SCRIPT", [s.hook, s.context, ...s.points, s.example, s.takeaway, cta].join("\n\n"),
     "", "6. INSTAGRAM / SHORT-VIDEO CAPTION", caption,
     "", "SUGGESTED HASHTAGS", tags,
@@ -86,7 +108,7 @@ export function buildFreeCreatorPackV2(input: CreatorPackInput): string {
     "- This is a ready-to-record general draft; review it for your exact audience and context.",
     "- Do not present general examples as research findings, statistics, or expert advice.",
     "- Verify additional factual, current, financial, health, or safety claims with reliable sources before publishing.",
-    "- Image prompts are text only; no image or video file is created.",
+    "- Image prompts are detailed text only; no image or video file is created.",
     "- Check spelling, audio rights, accessibility captions, and platform-safe framing.",
     "", "STATUS", "Generated locally from curated templates. Provider was not called; billing was not triggered.",
   ].join("\n");
