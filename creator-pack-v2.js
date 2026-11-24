@@ -18,7 +18,7 @@
       return;
     }
     button.disabled = true;
-    status.textContent = "Building Creator Pack 2.1 with local templates…";
+    status.textContent = "Building Creator Pack 2.2 with local templates…";
     try {
       const response = await fetch(apiBase + "/api/free/creator-pack/v2", {
         method: "POST",
@@ -36,15 +36,15 @@
         })
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Creator Pack 2.1 could not be created.");
+      if (!response.ok) throw new Error(data.error || "Creator Pack 2.2 could not be created.");
       if (!data.pack || data.generatedBy !== "local-template-engine-v2" || data.providerCalled !== false || data.billingTriggered !== false) {
         throw new Error("The Creator Pack response did not pass its free-mode safety checks.");
       }
       output.textContent = data.pack;
-      outputStatus.textContent = "Creator Pack 2.1 ready · Local templates · No AI inference or credits used";
+      outputStatus.textContent = "Creator Pack 2.2 ready · Local templates · No AI inference or credits used";
       status.textContent = "✓ Pack ready. Review examples and verify factual claims before publishing.";
     } catch (error) {
-      status.textContent = error instanceof Error ? error.message : "Creator Pack 2.1 failed.";
+      status.textContent = error instanceof Error ? error.message : "Creator Pack 2.2 failed.";
     } finally {
       button.disabled = false;
     }
